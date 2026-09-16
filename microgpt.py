@@ -16,7 +16,7 @@ if not os.path.exists('input.txt'):
     import urllib.request
     names_url = 'https://raw.githubusercontent.com/karpathy/makemore/988aa59/names.txt'
     urllib.request.urlretrieve(names_url, 'input.txt')
-docs = [line.strip() for line in open('input.txt') if line.strip()]
+docs = [line.strip() for line in open('input.txt', encoding='utf-8') if line.strip()]
 random.shuffle(docs)
 print(f"num docs: {len(docs)}")
 
@@ -184,17 +184,24 @@ for step in range(num_steps):
     print(f"step {step+1:4d} / {num_steps:4d} | loss {loss.data:.4f}", end='\r')
 
 # Inference: may the model babble back to us
-temperature = 0.5 # in (0, 1], control the "creativity" of generated text, low to high
-print("\n--- inference (new, hallucinated names) ---")
-for sample_idx in range(20):
-    keys, values = [[] for _ in range(n_layer)], [[] for _ in range(n_layer)]
-    token_id = BOS
-    sample = []
-    for pos_id in range(block_size):
-        logits = gpt(token_id, pos_id, keys, values)
-        probs = softmax([l / temperature for l in logits])
-        token_id = random.choices(range(vocab_size), weights=[p.data for p in probs])[0]
-        if token_id == BOS:
-            break
-        sample.append(uchars[token_id])
-    print(f"sample {sample_idx+1:2d}: {''.join(sample)}")
+#temperature = 0.5 # in (0, 1], control the "creativity" of generated text, low to high
+while True:
+    user_input = input("\nTemperature (0..1): ")
+    temperature = float(user_input)
+    if temperature <= 0.0:
+        temperature = 1e-5
+    elif 1.0 <= temperature:
+        temperature = 1.0
+    print(f"\n--- inference (new, hallucinated names, temperature={temperature}) ---")
+    for sample_idx in range(20):
+        keys, values = [[] for _ in range(n_layer)], [[] for _ in range(n_layer)]
+        token_id = BOS
+        sample = []
+        for pos_id in range(block_size):
+            logits = gpt(token_id, pos_id, keys, values)
+            probs = softmax([l / temperature for l in logits])
+            token_id = random.choices(range(vocab_size), weights=[p.data for p in probs])[0]
+            if token_id == BOS:
+                break
+            sample.append(uchars[token_id])
+        print(f"sample {sample_idx+1:2d}: {''.join(sample)}")
