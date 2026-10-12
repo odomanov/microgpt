@@ -10,6 +10,7 @@ import os       # os.path.exists
 import math     # math.log, math.exp
 import random   # random.seed, random.choices, random.gauss, random.shuffle
 random.seed(42) # Let there be order among chaos
+import csv      # for losses
 
 # Let there be a Dataset `docs`: list[str] of documents (e.g. a list of names)
 if not os.path.exists('input.txt'):
@@ -149,7 +150,10 @@ m = [0.0] * len(params) # first moment buffer
 v = [0.0] * len(params) # second moment buffer
 
 # Repeat in sequence
-num_steps = 1000 # number of training steps
+# number of training steps
+user_input = input("\nSteps (1000): ") or 1000
+num_steps = int(user_input)
+losses2 = []
 for step in range(num_steps):
 
     # Take single document, tokenize it, surround it with BOS special token on both sides
@@ -163,6 +167,7 @@ for step in range(num_steps):
     for pos_id in range(n):
         token_id, target_id = tokens[pos_id], tokens[pos_id + 1]
         logits = gpt(token_id, pos_id, keys, values)
+        # print(f"pos: {pos_id}, logits: {logits}")
         probs = softmax(logits)
         loss_t = -probs[target_id].log()
         losses.append(loss_t)
@@ -181,12 +186,19 @@ for step in range(num_steps):
         p.data -= lr_t * m_hat / (v_hat ** 0.5 + eps_adam)
         p.grad = 0
 
+    # input("pause")
     print(f"step {step+1:4d} / {num_steps:4d} | loss {loss.data:.4f}", end='\r')
+    losses2.append(loss.data)
+
+with open("losses.csv", mode="w", newline="", encoding="utf-8") as file:
+    writer = csv.writer(file)
+    writer.writerow(["loss"])
+    writer.writerows([[value] for value in losses2])
 
 # Inference: may the model babble back to us
 #temperature = 0.5 # in (0, 1], control the "creativity" of generated text, low to high
 while True:
-    user_input = input("\nTemperature (0..1): ")
+    user_input = input("\nTemperature (0..1, 0.5): ") or 0.5
     temperature = float(user_input)
     if temperature <= 0.0:
         temperature = 1e-5
